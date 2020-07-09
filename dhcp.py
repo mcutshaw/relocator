@@ -180,7 +180,7 @@ class dhcp_offer(packet_base):
 	def build_from_packet(self, packet, ip, lease_time, netmask=None, router=None, dns=None, server_ip=None):
 		tar_packet = packet_base(decode=packet)
 		options = []
-		options.append((53, 1, struct.pack('>B', 2))) #type will be dhcp discover
+		options.append((53, 1, struct.pack('>B', 2))) #type will be dhcp offer
 		if server_ip:
 			options.append((54, 4, socket.inet_aton(server_ip)))
 		options.append((51, 4, struct.pack('>I',lease_time)))
