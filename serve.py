@@ -2,6 +2,7 @@ import netifaces
 from block import BlockGenerator
 from configparser import ConfigParser
 import struct
+import socket
 
 def getType(packet):
     for option in packet.options:
