@@ -3,6 +3,7 @@ from block import BlockGenerator
 from configparser import ConfigParser
 import struct
 import socket
+from dhcp import packet_base
 
 def getType(packet):
     for option in packet.options:
