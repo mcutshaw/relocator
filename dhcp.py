@@ -105,7 +105,7 @@ class packet_base:
 			data += option[2]
 		return data
 
-	def decodeoptions(self):
+	def decodeoptions(self, data):
 		print(f'while decoding option: {data}')
 		options = []
 		counter = 0
