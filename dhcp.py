@@ -57,7 +57,7 @@ class packet_base:
 				self.hardware_padding = packet[34:44].hex()
 
 
-				self.options = self.decodeoptions(packet[240:len(packet)])
+				self.decodeoptions(packet[240:len(packet)])
 				for option in self.options:
 					if option[0] == 51:
 						if option[2] == 1 or option[2] == 3:
@@ -93,13 +93,17 @@ class packet_base:
 		data+= self.server_host_name
 		data+= self.file
 		data+= self.magic_cookie
-		data+= encodeoptions()
+		options = self.encodeoptions()
+		if not options == None:
+			data+= self.encodeoptions()
 
 		if self.file_overload or self.sname_overload:
 			raise NotImplemented('Feature not implemented')
+		return data
 
 
 	def encodeoptions(self):
+		data = b''
 		for option in self.options:
 			data += struct.pack('>BB', option[0], option[1])
 			data += option[2]
@@ -117,6 +121,7 @@ class packet_base:
 					counter += 1
 					continue
 				if opt_type == 255:
+					options.append((255, 0, b''))
 					break
 				counter += 1
 				length = struct.unpack('B', data[counter:counter+1])[0]
@@ -127,6 +132,7 @@ class packet_base:
 		except Exception as e:
 			print(e)
 			print(f'something is screwy with option decoding: {data}')
+
 		if self.options is not None:
 			self.options += options
 		else:
@@ -169,10 +175,16 @@ class packet_base:
 		self.next_serve = next_serve # 4 bytes, ip, leave blank, might be related to bootp
 		self.relay_agent = relay_agent # 4 bytes, ip, leave blank I think related to dhcp relays
 		self.client_mac = client_mac # 6 bytes, mac address grab from client
-		self.hardware_padding = 0 # 10 bytes, this and the above should be 16 bytes
-		self.server_host_name = server_host_name # 64 bytes
-		self.file = file # 128 bytes, will not be used
-		self.magic_cookie = 0x63825363 # 4 bytes, needs to be set to 63 82 53 63
+		self.hardware_padding = '00000000000000000000' # 10 bytes, this and the above should be 16 bytes
+		if server_host_name == None:
+			self.server_host_name = b'\x00' * 64
+		else:
+			self.server_host_name = server_host_name # 64 bytes
+		if file == None: # 128 bytes, will not be used
+			self.file = b'\x00' * 128
+		else:
+			self.file = file
+		self.magic_cookie = b'\x63\x82\x53\x63' # 4 bytes, needs to be set to 63 82 53 63
 		self.options = options # format for options will be (type, length, option/data), with a length of byte, byte, variable len
 		# be able to receive options of at least 312 bytes, might be some weird padding to align to work boundaries
 
@@ -184,7 +196,7 @@ class dhcp_offer(packet_base):
 		super().__init__()
 
 	def build_from_packet(self, packet, ip, lease_time, netmask=None, router=None, dns=None, server_ip=None):
-		tar_packet = packet_base(decode=packet)
+		tar_packet = packet_base(packet=packet)
 		options = []
 		options.append((53, 1, struct.pack('>B', 2))) #type will be dhcp offer
 		if server_ip:
@@ -197,15 +209,15 @@ class dhcp_offer(packet_base):
 		if dns:
 			options.append((6, 4, socket.inet_aton(dns)))
 		options.append((255, 0, b''))
-
-		return self.build(2, tar_packet.transaction_id, ip, tar_packet.client_mac, tar_packet.seconds_elapsed, tar_packet.bootp_flags)
+		print(tar_packet.client_mac, type(tar_packet.client_mac))
+		return self.build(2, tar_packet.transaction_id, ip, tar_packet.client_mac, tar_packet.seconds_elapsed, tar_packet.bootp_flags, options=options)
 
 class dhcp_ack(packet_base):
 	def __init__(self):
 		super().__init__()
 
 	def build_from_packet(self, packet, ip, lease_time, netmask=None, router=None, dns=None, server_ip=None):
-		tar_packet = packet_base(decode=packet)
+		tar_packet = packet_base(packet=packet)
 		options = []
 		options.append((53, 1, struct.pack('>B', 5))) #type will be dhcp ack
 		if server_ip:
@@ -219,4 +231,4 @@ class dhcp_ack(packet_base):
 			options.append((6, 4, socket.inet_aton(dns)))
 		options.append((255, 0, b''))
 
-		return self.build(2, tar_packet.transaction_id, ip, tar_packet.client_mac, tar_packet.seconds_elapsed, tar_packet.bootp_flags)
+		return self.build(2, tar_packet.transaction_id, ip, tar_packet.client_mac, tar_packet.seconds_elapsed, tar_packet.bootp_flags, options=options)
