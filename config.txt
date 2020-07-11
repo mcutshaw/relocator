@@ -6,3 +6,4 @@ Assign: normal
 Netmask: 255.255.0.0
 Router: 172.16.0.1
 Range: 172.16.0.100-172.16.0.200
+Lease: 3600
