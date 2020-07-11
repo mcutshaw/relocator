@@ -112,9 +112,12 @@ class packet_base:
 		try:
 			while counter <= len(data):
 				opt_type = struct.unpack('B', data[counter:counter+1])[0]
+				print(f'type: {opt_type}')
 				if opt_type == 0:
 					counter += 1
 					continue
+				if opt_type == 255:
+					break
 				counter += 1
 				length = struct.unpack('B', data[counter:counter+1])[0]
 				counter += 1
@@ -124,7 +127,10 @@ class packet_base:
 		except Exception as e:
 			print(e)
 			print(f'something is screwy with option decoding: {data}')
-		self.options += options
+		if self.options is not None:
+			self.options += options
+		else:
+			self.options = options
 
 	def printpacket(self):
 		print(f'message_type: {self.message_type}')
