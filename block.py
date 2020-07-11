@@ -27,7 +27,9 @@ class BlockGenerator:
             if 'Router' in tar_block:
                 block.router = tar_block['Router']
             if 'DNS' in tar_block:
-                block.dns = tarblock['DNS']
+                block.dns = tar_block['DNS']
+            if 'Lease' in tar_block:
+                block.lease = int(tar_block['Lease'])
             if 'Range' in tar_block:
                 if '-' in tar_block['Range']:
                     block.start_addr = ip_address(tar_block['Range'].split('-')[0])
@@ -78,7 +80,7 @@ class RandomBlock(Block):
         random.shuffle(self.pool)
 
     def addToPool(self, ip):
-        self.pool.insert(random.randint(0,len(self.pool)), ip)        
+        self.pool.insert(random.randint(0,len(self.pool)), ip)
 
 class NormalBlock(Block):
     def __init__(self):
