@@ -1,6 +1,8 @@
 from multiprocessing import Manager
 from ipaddress import ip_address
+from datetime import datetime, timedelta
 import random
+import sys
 
 class UnknownBlockType(Exception):
     pass
@@ -22,6 +24,8 @@ class BlockGenerator:
             else:
                 raise UnknownBlockType(f'Uknown block type: {type}')
 
+            if 'Name' in tar_block:
+                block.name = tar_block['name']
             if 'Netmask' in tar_block:
                 block.netmask = tar_block['Netmask']
             if 'Router' in tar_block:
@@ -48,7 +52,7 @@ class Block:
         self.end_addr = None
         self.netmask = None
         self.dns = None
-
+        self.name = None
         m = Manager()
         self.pool = m.list()
 
@@ -92,13 +96,18 @@ class NormalBlock(Block):
             self.pool.append(addr)
             addr += 1
 
-class ListManager:
-    def __init__(self, l):
-        self.l = l
-        # list should contain tuples of (ip, mac, lease time)
+class LeaseManager:
+    def __init__(self):
+        m = Manager()
+        self.d = m.dict()
+        # list should contain tuples of (ip, mac, original lease, lease time, state, blocl_name)
 
     def getLease(self, mac):
-        for lease in self.l:
-            if lease[1] == mac:
-                return lease
-        return None
+        try:
+            return (lease[0], lease[1], (lease[2]-datetime.now).seconds, lease[3], lease[4])
+        except KeyError:
+            return None
+
+    def addLease(self,  mac, ip, original_lease, lease, state, block_name): # states: "ASSOC", "ESTB", "EXPR"
+        lease = datetime.now()+timedelta(seconds=lease)
+        self.d[mac] = (ip, original_lease, lease, state, block_name)
