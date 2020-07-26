@@ -37,22 +37,20 @@ class packet_base:
 
 	def decode(self, packet):
 		self.magic_cookie = packet[236:240].hex()
-		print(f'magic_cookie: {self.magic_cookie}')
 		if self.magic_cookie == '63825363':
 			try:
-				print(f'packet length 1: {len(packet)}')
-				format = '>BBBBH'
+				format = '>BBBB'
 				(self.message_type,
 				self.hardware_type,
 				self.hardware_address_len,
-				self.hops,
-				self.seconds_elapsed) = struct.unpack(format, packet[:6])
-				self.bootp_flags = packet[6:8].hex()
-				self.client_ip = socket.inet_ntoa(packet[8:12])
-				self.your_client_ip = socket.inet_ntoa(packet[12:16])
-				self.next_serve = socket.inet_ntoa(packet[16:20])
-				self.relay_agent = socket.inet_ntoa(packet[20:24])
-				self.transaction_id = packet[24:28].hex()
+				self.hops) = struct.unpack(format, packet[:4])
+				self.transaction_id = packet[4:8].hex()
+				self.seconds_elapsed = struct.unpack('>H', packet[8:10])[0]
+				self.bootp_flags = packet[10:12].hex()
+				self.client_ip = socket.inet_ntoa(packet[12:16])
+				self.your_client_ip = socket.inet_ntoa(packet[16:20])
+				self.next_serve = socket.inet_ntoa(packet[20:24])
+				self.relay_agent = socket.inet_ntoa(packet[24:28])
 				self.client_mac = packet[28:34].hex()
 				self.hardware_padding = packet[34:44].hex()
 
@@ -77,17 +75,17 @@ class packet_base:
 			raise DecodeError('This is not a decodeable DHCP packet')
 
 	def encode(self):
-		data = struct.pack('>BBBBH', self.message_type,
+		data = struct.pack('>BBBB', self.message_type,
 		self.hardware_type,
 		self.hardware_address_len,
-		self.hops,
-		self.seconds_elapsed)
+		self.hops)
+		data+= bytearray.fromhex(self.transaction_id)
+		data+= struct.pack('>H', self.seconds_elapsed)
 		data+= bytearray.fromhex(self.bootp_flags)
 		data+= socket.inet_aton(self.client_ip)
 		data+= socket.inet_aton(self.your_client_ip)
 		data+= socket.inet_aton(self.next_serve)
 		data+= socket.inet_aton(self.relay_agent)
-		data+= bytearray.fromhex(self.transaction_id)
 		data+= bytearray.fromhex(self.client_mac)
 		data+= bytearray.fromhex(self.hardware_padding)
 		data+= self.server_host_name
@@ -110,13 +108,11 @@ class packet_base:
 		return data
 
 	def decodeoptions(self, data):
-		print(f'while decoding option: {data}')
 		options = []
 		counter = 0
 		try:
 			while counter <= len(data):
 				opt_type = struct.unpack('B', data[counter:counter+1])[0]
-				print(f'type: {opt_type}')
 				if opt_type == 0:
 					counter += 1
 					continue
@@ -160,7 +156,7 @@ class packet_base:
 		print(f'magic_cookie: {self.magic_cookie}')
 
 	def build(self, message_type, transaction_id, offering_ip, client_mac, seconds_elapsed=0,
-	bootp_flags=0x0000, client_ip="0.0.0.0", next_serve="0.0.0.0",
+	bootp_flags='0000', client_ip="0.0.0.0", next_serve="0.0.0.0",
 	relay_agent="0.0.0.0", file=None, server_host_name=None, options=[],
 	file_overload=False, sname_overload=False):
 		self.file_overload = file_overload
@@ -209,7 +205,6 @@ class dhcp_offer(packet_base):
 		if dns:
 			options.append((6, 4, socket.inet_aton(dns)))
 		options.append((255, 0, b''))
-		print(tar_packet.client_mac, type(tar_packet.client_mac))
 		return self.build(2, tar_packet.transaction_id, ip, tar_packet.client_mac, tar_packet.seconds_elapsed, tar_packet.bootp_flags, options=options)
 
 class dhcp_ack(packet_base):
@@ -232,3 +227,16 @@ class dhcp_ack(packet_base):
 		options.append((255, 0, b''))
 
 		return self.build(2, tar_packet.transaction_id, ip, tar_packet.client_mac, tar_packet.seconds_elapsed, tar_packet.bootp_flags, options=options)
+
+class dhcp_nack(packet_base):
+	def __init__(self):
+		super().__init__()
+
+	def build_for_host(self, mac, transaction_id, server_ip=None):
+		options = []
+		options.append((53, 1, struct.pack('>B', 6))) #type will be dhcp nck
+		if server_ip:
+			options.append((54, 4, socket.inet_aton(server_ip)))
+		options.append((255, 0, b''))
+
+		return self.build(2, transaction_id, '0.0.0.0', mac, options=options)

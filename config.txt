@@ -2,8 +2,9 @@
 1:Block_Name1
 
 [Block_Name1]
-Assign: normal
-Netmask: 255.255.0.0
-Router: 172.16.0.1
-Range: 172.16.0.100-172.16.0.200
-Lease: 3600
+Assign: random
+Netmask: 255.255.255.0
+Router:192.168.28.1
+Range: 192.168.28.10-192.168.28.240
+Lease: 4000
+DNS: 1.1.1.1

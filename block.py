@@ -24,8 +24,7 @@ class BlockGenerator:
             else:
                 raise UnknownBlockType(f'Uknown block type: {type}')
 
-            if 'Name' in tar_block:
-                block.name = tar_block['name']
+            block.name = config['Blocks'][pair]
             if 'Netmask' in tar_block:
                 block.netmask = tar_block['Netmask']
             if 'Router' in tar_block:
@@ -104,10 +103,30 @@ class LeaseManager:
 
     def getLease(self, mac):
         try:
-            return (lease[0], lease[1], (lease[2]-datetime.now).seconds, lease[3], lease[4])
+            lease = self.d[mac]
         except KeyError:
             return None
 
-    def addLease(self,  mac, ip, original_lease, lease, state, block_name): # states: "ASSOC", "ESTB", "EXPR"
+        try:
+            if lease[2] < datetime.now():
+                return (lease[0], lease[1], 0, lease[3], lease[4], lease[5])
+            else:
+                return (lease[0], lease[1], (lease[2]-datetime.now()).seconds, lease[3], lease[4], lease[5])
+        except KeyError:
+            return None
+    def resetLease(self, mac):
+        try:
+            lease = self.d[mac]
+        except KeyError:
+            return None
+        self.d[mac] = (lease[0], lease[1], datetime.now()+timedelta(seconds=lease[1]), lease[3], lease[4], lease[5])
+
+    def setID(self, mac, transaction_id):
+        try:
+            lease = self.d[mac]
+        except KeyError:
+            return None
+        self.d[mac] = (lease[0], lease[1], datetime.now()+timedelta(seconds=lease[1]), lease[3], lease[4], transaction_id)
+    def addLease(self,  mac, ip, original_lease, lease, state, block_name, transaction_id): # states: "ASSOC", "ESTB", "EXPR"
         lease = datetime.now()+timedelta(seconds=lease)
-        self.d[mac] = (ip, original_lease, lease, state, block_name)
+        self.d[mac] = (ip, original_lease, lease, state, block_name, transaction_id)
